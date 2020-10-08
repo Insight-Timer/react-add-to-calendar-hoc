@@ -127,7 +127,7 @@ const buildShareFile = ({
  * @param {string} event.startDatetime
  * @param {string} event.endDatetime
  */
-const getVtimezoneFromMomentZone = ({
+export const getVtimezoneFromMomentZone = ({
   timezone = "",
   startDatetime,
   endDatetime,
