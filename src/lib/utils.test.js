@@ -8,7 +8,8 @@ import {
   isInternetExplorer,
   isMobile,
   escapeICSDescription,
-  getVtimezoneFromMomentZone
+  getVtimezoneFromMomentZone,
+  UTCMinsToUTCOffset
 } from './utils';
 
 const testEvent = {
@@ -178,6 +179,23 @@ describe('escapeICSDescription', () => {
   });
 });
 
+describe("UTCMinsToUTCOffset", () => {
+  it("Calculates negative offsets", () => {
+    // Australia/Sydney
+    expect(UTCMinsToUTCOffset(-600)).toEqual("+1000");
+  });
+
+  it("Calculates positive offsets", () => {
+    // US/Central
+    expect(UTCMinsToUTCOffset(360)).toEqual("-0600");
+  });
+
+  it("Calculates part-hourly offsets", () => {
+    // Canada/Newfoundland
+    expect(UTCMinsToUTCOffset(210)).toEqual("-0330");
+  });
+});
+
 describe("getVtimezoneFromMomentZone", () => {
   it("returns VTIMEZONE component for event in Daylight savings", () => {
     const eventInDST = {
@@ -213,7 +231,7 @@ describe("getVtimezoneFromMomentZone", () => {
         "END:VTIMEZONE",
       ],
     };
-    
+
     expect(getVtimezoneFromMomentZone(eventInStandard.testValue)).toEqual(
       eventInStandard.result
     );

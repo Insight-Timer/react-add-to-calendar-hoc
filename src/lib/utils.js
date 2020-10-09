@@ -118,6 +118,19 @@ const buildShareFile = ({
   return isMobile() ? encodeURI(`data:text/calendar;charset=utf8,${content}`) : content;
 }
 
+// E.g. 5 => "05"; 10 => "10"
+const padZero = (n) => `${Math.abs(parseInt(n, 10)) < 10 ? "0" : ""}${Math.abs(n)}`;
+
+// E.g. -600 => +1000
+export const UTCMinsToUTCOffset = (t) => {
+  // We reverse sign when converting to offset
+  const sign = t > 0 ? "-" : "+";
+  const hrs = Math.abs(Math.floor(t / 60));
+  const mins = Math.abs(t) % 60;
+
+  return `${sign}${padZero(hrs)}${padZero(mins)}`;
+};
+
 /**
  * Takes a timezone, start and end date and returns VTIMEZONE entries
  * corresponding to DST changes during and around the event. N.B. This
