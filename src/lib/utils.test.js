@@ -198,26 +198,27 @@ describe("UTCMinsToUTCOffset", () => {
 
 describe("getVtimezoneFromMomentZone", () => {
   it("returns VTIMEZONE component for event in Daylight savings", () => {
+    // Events in DST should contain a DAYLIGHT block followed by a STANDARD block
     const eventInDST = {
       testValue: {
         timezone: "Australia/Sydney",
-        startDatetime: "20211001T123406",
-        endDatetime: "20211001T124906",
+        startDatetime: "20211004T123406",
+        endDatetime: "20211004T124906",
       },
       result: [
         "BEGIN:VTIMEZONE\nTZID:Australia/Sydney",
-        "BEGIN:STANDARD\nDTSTART:20210404T020000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:AEDT\nEND:STANDARD",
-        "BEGIN:DAYLIGHT\nDTSTART:20211003T030000\nTZOFFSETFROM:+1100\nTZOFFSETTO:+1000\nTZNAME:AEST\nEND:DAYLIGHT",
-        "END:VTIMEZONE",
-      ],
+        "BEGIN:DAYLIGHT\nDTSTART:20211003T030000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:AEDT\nEND:DAYLIGHT",
+        "BEGIN:STANDARD\nDTSTART:20220403T020000\nTZOFFSETFROM:+1100\nTZOFFSETTO:+1000\nTZNAME:AEST\nEND:STANDARD",
+        "END:VTIMEZONE"
+      ]
     };
-
     expect(getVtimezoneFromMomentZone(eventInDST.testValue)).toEqual(
       eventInDST.result
     );
   });
 
   it("returns VTIMEZONE component for event in Standard time", () => {
+    // Events in STANDARD should contain a STANDARD block followed by a DAYLIGHT block
     const eventInStandard = {
       testValue: {
         timezone: "Australia/Sydney",
@@ -226,9 +227,9 @@ describe("getVtimezoneFromMomentZone", () => {
       },
       result: [
         "BEGIN:VTIMEZONE\nTZID:Australia/Sydney",
-        "BEGIN:STANDARD\nDTSTART:20200405T020000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:AEDT\nEND:STANDARD",
-        "BEGIN:DAYLIGHT\nDTSTART:20201004T030000\nTZOFFSETFROM:+1100\nTZOFFSETTO:+1000\nTZNAME:AEST\nEND:DAYLIGHT",
-        "END:VTIMEZONE",
+        "BEGIN:STANDARD\nDTSTART:20200405T020000\nTZOFFSETFROM:+1100\nTZOFFSETTO:+1000\nTZNAME:AEST\nEND:STANDARD",
+        "BEGIN:DAYLIGHT\nDTSTART:20201004T030000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:AEDT\nEND:DAYLIGHT",
+        "END:VTIMEZONE"
       ],
     };
 

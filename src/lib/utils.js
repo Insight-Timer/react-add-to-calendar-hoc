@@ -151,28 +151,38 @@ export const getVtimezoneFromMomentZone = ({
   const header = `BEGIN:VTIMEZONE\nTZID:${timezone}`;
   const footer = "END:VTIMEZONE";
 
-  // Find the timestamp for DST changes immediately before
-  // and after the event.
-  const prevDSTSwitch =
-    zone.untils.findIndex((u) => u > moment(startDatetime).unix() * 1000) - 1;
-  const lastDSTSwitch = zone.untils.findIndex(
-    (u) => u > moment(endDatetime).unix() * 1000
+  // Find the 'until' index which corresponds with the event start.
+  // This contains information about the observance which applies when
+  // the event starts.
+  // See https://momentjs.com/timezone/docs/#/data-formats/unpacked-format/
+
+  // Find index of the observance which precedes the start of the event
+  const currentUntil = zone.untils.findIndex(
+    (u) => u > moment(startDatetime).unix() * 1000
   );
+
+  // Find 'until' index which applies after the event ends.
+  const futureUntil =
+    zone.untils.findIndex((u) => u > moment(endDatetime).unix() * 1000) + 1;
 
   const zTZitems = [];
   // Generate VTIMEZONE entries
-  // FIXME: Handle case when lastDSTSwitch does not exist, or is the last entry
-  for (let i = prevDSTSwitch; i < lastDSTSwitch + 1; i++) {
-    // Determine which mode is STARTING. Even entries are DST, odd entries are standard.
-    const type = i % 2 ? "DAYLIGHT" : "STANDARD";
-    const momDtStart = moment.tz(zone.untils[i], timezone);
-    const momNext = moment.tz(zone.untils[i + 1], timezone);
-    zTZitems.push(`BEGIN:${type}
-DTSTART:${momDtStart.format("YYYYMMDDTHHmmss")}
-TZOFFSETFROM:${momDtStart.format("ZZ")}
-TZOFFSETTO:${momNext.format("ZZ")}
-TZNAME:${zone.abbrs[i]}
-END:${type}`);
+  // FIXME: Handle border cases
+
+  for (let i = currentUntil; i < futureUntil + 1; i++) {
+    // Determine which mode is starting.
+    const observance = (i + 1) % 2 ? "DAYLIGHT" : "STANDARD";
+    const tzName = zone.abbrs[i];
+    const observanceStartedAt = moment.tz(zone.untils[i - 1], timezone);
+    const offsetFrom = UTCMinsToUTCOffset(zone.offsets[i - 1]);
+    const offsetTo = UTCMinsToUTCOffset(zone.offsets[i]);
+
+    zTZitems.push(`BEGIN:${observance}
+DTSTART:${observanceStartedAt.format("YYYYMMDDTHHmmss")}
+TZOFFSETFROM:${offsetFrom}
+TZOFFSETTO:${offsetTo}
+TZNAME:${tzName}
+END:${observance}`);
   }
 
   return [header, ...zTZitems, footer];
