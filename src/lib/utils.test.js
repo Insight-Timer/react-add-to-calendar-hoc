@@ -1,4 +1,3 @@
-import moment from 'moment';
 import {
   SHARE_SITES
 } from './enums';
@@ -8,7 +7,9 @@ import {
   formatDuration,
   isInternetExplorer,
   isMobile,
-  escapeICSDescription
+  escapeICSDescription,
+  getVtimezoneFromMomentZone,
+  UTCMinsToUTCOffset
 } from './utils';
 
 const testEvent = {
@@ -175,5 +176,65 @@ describe('escapeICSDescription', () => {
     expect(escapeICSDescription('Line One <br>LineTwo')).toEqual(expectedResult);
     expect(escapeICSDescription('Line One <br />LineTwo')).toEqual(expectedResult);
     expect(escapeICSDescription('Line One <br >LineTwo')).toEqual(expectedResult);
+  });
+});
+
+describe("UTCMinsToUTCOffset", () => {
+  it("Calculates negative offsets", () => {
+    // Australia/Sydney
+    expect(UTCMinsToUTCOffset(-600)).toEqual("+1000");
+  });
+
+  it("Calculates positive offsets", () => {
+    // US/Central
+    expect(UTCMinsToUTCOffset(360)).toEqual("-0600");
+  });
+
+  it("Calculates part-hourly offsets", () => {
+    // Canada/Newfoundland
+    expect(UTCMinsToUTCOffset(210)).toEqual("-0330");
+  });
+});
+
+describe("getVtimezoneFromMomentZone", () => {
+  it("returns VTIMEZONE component for event in Daylight savings", () => {
+    // Events in DST should contain a DAYLIGHT block followed by a STANDARD block
+    const eventInDST = {
+      testValue: {
+        timezone: "Australia/Sydney",
+        startDatetime: "20211004T123406",
+        endDatetime: "20211004T124906",
+      },
+      result: [
+        "BEGIN:VTIMEZONE\nTZID:Australia/Sydney",
+        "BEGIN:DAYLIGHT\nDTSTART:20211003T030000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:AEDT\nEND:DAYLIGHT",
+        "BEGIN:STANDARD\nDTSTART:20220403T020000\nTZOFFSETFROM:+1100\nTZOFFSETTO:+1000\nTZNAME:AEST\nEND:STANDARD",
+        "END:VTIMEZONE"
+      ]
+    };
+    expect(getVtimezoneFromMomentZone(eventInDST.testValue)).toEqual(
+      eventInDST.result
+    );
+  });
+
+  it("returns VTIMEZONE component for event in Standard time", () => {
+    // Events in STANDARD should contain a STANDARD block followed by a DAYLIGHT block
+    const eventInStandard = {
+      testValue: {
+        timezone: "Australia/Sydney",
+        startDatetime: "20200918T123406",
+        endDatetime: "20200918T124906",
+      },
+      result: [
+        "BEGIN:VTIMEZONE\nTZID:Australia/Sydney",
+        "BEGIN:STANDARD\nDTSTART:20200405T020000\nTZOFFSETFROM:+1100\nTZOFFSETTO:+1000\nTZNAME:AEST\nEND:STANDARD",
+        "BEGIN:DAYLIGHT\nDTSTART:20201004T030000\nTZOFFSETFROM:+1000\nTZOFFSETTO:+1100\nTZNAME:AEDT\nEND:DAYLIGHT",
+        "END:VTIMEZONE"
+      ],
+    };
+
+    expect(getVtimezoneFromMomentZone(eventInStandard.testValue)).toEqual(
+      eventInStandard.result
+    );
   });
 });

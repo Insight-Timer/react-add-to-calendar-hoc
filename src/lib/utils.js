@@ -1,3 +1,4 @@
+import moment from 'moment-timezone';
 import {
   SHARE_SITES
 } from './enums';
@@ -94,9 +95,12 @@ const buildShareFile = ({
   timezone = '',
   title = '',
 }) => {
+  let VTIMEZONEEntries = getVtimezoneFromMomentZone({ timezone, startDatetime, endDatetime });
+
   let content = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
+    ...VTIMEZONEEntries,
     'BEGIN:VEVENT',
     `URL:${document.URL}`,
     'METHOD:PUBLISH',
@@ -113,6 +117,76 @@ const buildShareFile = ({
 
   return isMobile() ? encodeURI(`data:text/calendar;charset=utf8,${content}`) : content;
 }
+
+// E.g. 5 => "05"; 10 => "10"
+const padZero = (n) => `${Math.abs(parseInt(n, 10)) < 10 ? "0" : ""}${Math.abs(n)}`;
+
+// E.g. -600 => +1000
+export const UTCMinsToUTCOffset = (t) => {
+  // We reverse sign when converting to offset
+  const sign = t > 0 ? "-" : "+";
+  const hrs = Math.abs(Math.floor(t / 60));
+  const mins = Math.abs(t) % 60;
+
+  return `${sign}${padZero(hrs)}${padZero(mins)}`;
+};
+
+/**
+ * Takes a timezone, start and end date and returns VTIMEZONE entries
+ * corresponding to DST changes during and around the event. N.B. This
+ * is suboptimal for long-spanning or recurring events. For those cases
+ * recurrence rules should be applied.
+ * @param {string} event.timezone
+ * @param {string} event.startDatetime
+ * @param {string} event.endDatetime
+ */
+export const getVtimezoneFromMomentZone = ({
+  timezone = "",
+  startDatetime,
+  endDatetime,
+}) => {
+  if (timezone === "") return [];
+
+  const zone = moment.tz.zone(timezone);
+  const header = `BEGIN:VTIMEZONE\nTZID:${timezone}`;
+  const footer = "END:VTIMEZONE";
+
+  // Find the 'until' index which corresponds with the event start.
+  // This contains information about the observance which applies when
+  // the event starts.
+  // See https://momentjs.com/timezone/docs/#/data-formats/unpacked-format/
+
+  // Find index of the observance which precedes the start of the event
+  const currentUntil = zone.untils.findIndex(
+    (u) => u > moment(startDatetime).unix() * 1000
+  );
+
+  // Find 'until' index which applies after the event ends.
+  const futureUntil =
+    zone.untils.findIndex((u) => u > moment(endDatetime).unix() * 1000) + 1;
+
+  const zTZitems = [];
+  // Generate VTIMEZONE entries
+  // FIXME: Handle border cases
+
+  for (let i = currentUntil; i < futureUntil + 1; i++) {
+    // Determine which mode is starting.
+    const observance = (i + 1) % 2 ? "DAYLIGHT" : "STANDARD";
+    const tzName = zone.abbrs[i];
+    const observanceStartedAt = moment.tz(zone.untils[i - 1], timezone);
+    const offsetFrom = UTCMinsToUTCOffset(zone.offsets[i - 1]);
+    const offsetTo = UTCMinsToUTCOffset(zone.offsets[i]);
+
+    zTZitems.push(`BEGIN:${observance}
+DTSTART:${observanceStartedAt.format("YYYYMMDDTHHmmss")}
+TZOFFSETFROM:${offsetFrom}
+TZOFFSETTO:${offsetTo}
+TZNAME:${tzName}
+END:${observance}`);
+  }
+
+  return [header, ...zTZitems, footer];
+};
 
 /**
  * Takes an event object and a type of URL and returns either a calendar event
